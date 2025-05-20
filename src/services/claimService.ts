@@ -1,327 +1,220 @@
 // src/services/claimService.ts
 import { supabase } from './supabase';
-import { Claim, ClaimStatus, ClaimProduct, ClaimDocument } from '../types/claim';
+import { Claim, ClaimStatus, ClaimDocument, ClaimProduct } from '../types/claim';
+import { mockClaims } from '../data/mockData';
 
 export const claimService = {
   async fetchClaims(): Promise<Claim[]> {
-    const { data, error } = await supabase
-      .from('claims')
-      .select(`
-        *,
-        client:clients(client_name, client_code),
-        products:claim_products(*),
-        documents:documents(*)
-      `)
-      .order('creation_date', { ascending: false });
+    try {
+      // Dans une application réelle, nous ferions un appel à Supabase ici
+      // const { data, error } = await supabase.from('claims').select('*');
+      // if (error) throw error;
+      // return transformClaimsData(data);
 
-    if (error) {
-      throw new Error(error.message);
+      // Pour le moment, retournons simplement les données mockées
+      return mockClaims;
+    } catch (error) {
+      console.error('Error fetching claims:', error);
+      return [];
     }
-
-    // Transformer les données pour correspondre à notre interface Claim
-    return data.map(claim => ({
-      id: claim.id,
-      claimNumber: claim.claim_number,
-      clientName: claim.client.client_name,
-      clientId: claim.client.client_code,
-      creationDate: new Date(claim.creation_date),
-      status: claim.status as ClaimStatus,
-      department: claim.department,
-      identifiedCause: claim.identified_cause,
-      installed: claim.installed,
-      installationDate: claim.installation_date ? new Date(claim.installation_date) : undefined,
-      invoiceLink: claim.invoice_link,
-      solutionAmount: parseFloat(claim.solution_amount),
-      claimedAmount: parseFloat(claim.claimed_amount),
-      savedAmount: parseFloat(claim.saved_amount),
-      description: claim.description,
-      products: claim.products.map((p: any) => ({
-        id: p.id,
-        description: p.description,
-        style: p.style,
-        color: p.color,
-        quantity: parseFloat(p.quantity),
-        pricePerSY: parseFloat(p.price_per_sy),
-        totalPrice: parseFloat(p.total_price),
-        claimedQuantity: parseFloat(p.claimed_quantity)
-      })),
-      documents: claim.documents.map((d: any) => ({
-        id: d.id,
-        name: d.name,
-        type: d.type,
-        url: d.url,
-        uploadDate: new Date(d.upload_date),
-        category: d.category
-      })),
-      lastUpdated: new Date(claim.last_updated)
-    }));
   },
 
-  async getClaim(id: string): Promise<Claim> {
-    const { data, error } = await supabase
-      .from('claims')
-      .select(`
-        *,
-        client:clients(client_name, client_code),
-        products:claim_products(*),
-        documents:documents(*),
-        communications:communications(*),
-        checklists:checklists(
-          *,
-          items:checklist_items(*)
-        )
-      `)
-      .eq('id', id)
-      .single();
+  async getClaim(id: string): Promise<Claim | undefined> {
+    try {
+      // Dans une application réelle, nous ferions un appel à Supabase ici
+      // const { data, error } = await supabase
+      //   .from('claims')
+      //   .select('*')
+      //   .eq('id', id)
+      //   .single();
+      // if (error) throw error;
+      // return transformClaimData(data);
 
-    if (error) {
-      throw new Error(error.message);
+      // Pour le moment, utilisons les données mockées
+      return mockClaims.find(claim => claim.id === id);
+    } catch (error) {
+      console.error(`Error fetching claim with id ${id}:`, error);
+      return undefined;
     }
-
-    // Transformer les données pour correspondre à notre interface Claim
-    return {
-      id: data.id,
-      claimNumber: data.claim_number,
-      clientName: data.client.client_name,
-      clientId: data.client.client_code,
-      creationDate: new Date(data.creation_date),
-      status: data.status,
-      department: data.department,
-      identifiedCause: data.identified_cause,
-      installed: data.installed,
-      installationDate: data.installation_date ? new Date(data.installation_date) : undefined,
-      invoiceLink: data.invoice_link,
-      solutionAmount: parseFloat(data.solution_amount),
-      claimedAmount: parseFloat(data.claimed_amount),
-      savedAmount: parseFloat(data.saved_amount),
-      description: data.description,
-      products: data.products.map((p: any) => ({
-        id: p.id,
-        description: p.description,
-        style: p.style,
-        color: p.color,
-        quantity: parseFloat(p.quantity),
-        pricePerSY: parseFloat(p.price_per_sy),
-        totalPrice: parseFloat(p.total_price),
-        claimedQuantity: parseFloat(p.claimed_quantity)
-      })),
-      documents: data.documents.map((d: any) => ({
-        id: d.id,
-        name: d.name,
-        type: d.type,
-        url: d.url,
-        uploadDate: new Date(d.upload_date),
-        category: d.category
-      })),
-      communications: data.communications?.map((c: any) => ({
-        id: c.id,
-        date: new Date(c.date),
-        type: c.type,
-        subject: c.subject,
-        content: c.content,
-        sender: c.sender,
-        recipients: c.recipients
-      })),
-      checklists: data.checklists?.map((c: any) => ({
-        id: c.id,
-        type: c.type,
-        items: c.items.map((item: any) => ({
-          id: item.id,
-          title: item.title,
-          completed: item.completed,
-          notes: item.notes
-        }))
-      })),
-      lastUpdated: new Date(data.last_updated)
-    };
   },
 
   async createClaim(claim: Partial<Claim>): Promise<string> {
-    // D'abord récupérer l'ID du client
-    const { data: clientData, error: clientError } = await supabase
-      .from('clients')
-      .select('id')
-      .eq('client_code', claim.clientId)
-      .single();
+    try {
+      // Générer un ID unique pour la nouvelle réclamation
+      const newId = Date.now().toString(36) + Math.random().toString(36).substring(2);
 
-    if (clientError) {
-      throw new Error(`Client non trouvé: ${clientError.message}`);
+      // Dans une application réelle, nous insérerions dans Supabase
+      // const { data, error } = await supabase
+      //   .from('claims')
+      //   .insert({
+      //     ...transformClaimForInsert(claim),
+      //     id: newId
+      //   })
+      //   .select('id')
+      //   .single();
+      // if (error) throw error;
+      // return data.id;
+
+      // Pour le moment, simulons l'insertion et retournons l'ID généré
+      console.log('Creating claim:', claim);
+      return newId;
+    } catch (error) {
+      console.error('Error creating claim:', error);
+      throw new Error('Failed to create claim');
     }
-
-    // Insérer la réclamation
-    const { data, error } = await supabase
-      .from('claims')
-      .insert({
-        claim_number: claim.claimNumber,
-        client_id: clientData.id,
-        status: claim.status || ClaimStatus.New,
-        department: claim.department,
-        identified_cause: claim.identifiedCause,
-        installed: claim.installed,
-        installation_date: claim.installationDate,
-        invoice_link: claim.invoiceLink,
-        solution_amount: claim.solutionAmount || 0,
-        claimed_amount: claim.claimedAmount || 0,
-        saved_amount: claim.savedAmount || 0,
-        description: claim.description,
-        created_by: (await supabase.auth.getUser()).data.user?.id,
-        creation_date: new Date(),
-        last_updated: new Date()
-      })
-      .select('id')
-      .single();
-
-    if (error) {
-      throw new Error(`Erreur lors de la création de la réclamation: ${error.message}`);
-    }
-
-    const claimId = data.id;
-
-    // Insérer les produits si présents
-    if (claim.products && claim.products.length > 0) {
-      const productRows = claim.products.map(p => ({
-        claim_id: claimId,
-        description: p.description,
-        style: p.style,
-        color: p.color,
-        quantity: p.quantity,
-        price_per_sy: p.pricePerSY,
-        total_price: p.totalPrice,
-        claimed_quantity: p.claimedQuantity
-      }));
-
-      const { error: productsError } = await supabase
-        .from('claim_products')
-        .insert(productRows);
-
-      if (productsError) {
-        throw new Error(`Erreur lors de l'ajout des produits: ${productsError.message}`);
-      }
-    }
-
-    // Insérer les documents si présents
-    if (claim.documents && claim.documents.length > 0) {
-      const documentRows = claim.documents.map(d => ({
-        claim_id: claimId,
-        name: d.name,
-        type: d.type,
-        url: d.url,
-        category: d.category,
-        upload_date: d.uploadDate || new Date(),
-        uploaded_by: (await supabase.auth.getUser()).data.user?.id
-      }));
-
-      const { error: documentsError } = await supabase
-        .from('documents')
-        .insert(documentRows);
-
-      if (documentsError) {
-        throw new Error(`Erreur lors de l'ajout des documents: ${documentsError.message}`);
-      }
-    }
-
-    return claimId;
   },
 
   async updateClaim(id: string, updates: Partial<Claim>): Promise<void> {
-    const { error } = await supabase
-      .from('claims')
-      .update({
-        status: updates.status,
-        department: updates.department,
-        identified_cause: updates.identifiedCause,
-        installed: updates.installed,
-        installation_date: updates.installationDate,
-        invoice_link: updates.invoiceLink,
-        solution_amount: updates.solutionAmount,
-        claimed_amount: updates.claimedAmount,
-        saved_amount: updates.savedAmount,
-        description: updates.description,
-        last_updated: new Date()
-      })
-      .eq('id', id);
+    try {
+      // Dans une application réelle, nous mettrions à jour dans Supabase
+      // const { error } = await supabase
+      //   .from('claims')
+      //   .update(transformClaimForUpdate(updates))
+      //   .eq('id', id);
+      // if (error) throw error;
 
-    if (error) {
-      throw new Error(`Erreur lors de la mise à jour de la réclamation: ${error.message}`);
-    }
-
-    // Mise à jour des produits si présents
-    if (updates.products) {
-      // Pour simplifier, on supprime tous les produits et on les réinsère
-      // Dans un cas réel, on pourrait faire des mises à jour plus ciblées
-      await supabase.from('claim_products').delete().eq('claim_id', id);
-
-      const productRows = updates.products.map(p => ({
-        claim_id: id,
-        description: p.description,
-        style: p.style,
-        color: p.color,
-        quantity: p.quantity,
-        price_per_sy: p.pricePerSY,
-        total_price: p.totalPrice,
-        claimed_quantity: p.claimedQuantity
-      }));
-
-      const { error: productsError } = await supabase
-        .from('claim_products')
-        .insert(productRows);
-
-      if (productsError) {
-        throw new Error(`Erreur lors de la mise à jour des produits: ${productsError.message}`);
-      }
+      // Pour le moment, simulons la mise à jour
+      console.log(`Updating claim ${id} with:`, updates);
+    } catch (error) {
+      console.error(`Error updating claim ${id}:`, error);
+      throw new Error('Failed to update claim');
     }
   },
 
   async uploadDocument(claimId: string, file: File, category: string): Promise<ClaimDocument> {
-    // Générer un nom de fichier unique pour le stockage
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-    const filePath = `documents/${claimId}/${fileName}`;
+    try {
+      // Dans une application réelle, nous téléchargerions le fichier vers Supabase Storage
 
-    // Télécharger le fichier dans le stockage Supabase
-    const { data: uploadData, error: uploadError } = await supabase.storage
-      .from('claim-documents')
-      .upload(filePath, file);
+      // 1. Générer un nom de fichier unique
+      const fileExt = file.name.split('.').pop() || '';
+      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `documents/${claimId}/${fileName}`;
 
-    if (uploadError) {
-      throw new Error(`Erreur lors du téléchargement du fichier: ${uploadError.message}`);
-    }
+      // 2. Dans une application réelle, télécharger vers Supabase Storage
+      // const { data: uploadData, error: uploadError } = await supabase.storage
+      //   .from('claim-documents')
+      //   .upload(filePath, file);
+      // if (uploadError) throw uploadError;
 
-    // Obtenir l'URL publique du fichier
-    const { data: { publicUrl } } = supabase.storage
-      .from('claim-documents')
-      .getPublicUrl(filePath);
+      // 3. Obtenir l'URL publique dans une application réelle
+      // const { data: { publicUrl } } = supabase.storage
+      //   .from('claim-documents')
+      //   .getPublicUrl(filePath);
 
-    // Déterminer le type de document
-    const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExt?.toLowerCase() || '');
-    const documentType = isImage ? 'image' : 'document';
+      // 4. Récupérer l'ID de l'utilisateur actuel
+      // Ne pas utiliser await dans un objet littéral
+      // Dans une application réelle, d'abord récupérer l'utilisateur
+      // const { data: { user } } = await supabase.auth.getUser();
+      // const userId = user?.id;
 
-    // Enregistrer le document dans la base de données
-    const { data, error } = await supabase
-      .from('documents')
-      .insert({
-        claim_id: claimId,
+      // 5. Enregistrer le document dans la base de données
+      // const { data, error } = await supabase
+      //   .from('documents')
+      //   .insert({
+      //     claim_id: claimId,
+      //     name: file.name,
+      //     type: isImage ? 'image' : 'document',
+      //     url: publicUrl,
+      //     category,
+      //     uploaded_by: userId
+      //   })
+      //   .select()
+      //   .single();
+      // if (error) throw error;
+
+      // Pour le moment, simulons le téléchargement et créons un document mock
+      const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(fileExt);
+      const mockUrl = isImage
+        ? `https://via.placeholder.com/300x200?text=${encodeURIComponent(file.name)}`
+        : `https://via.placeholder.com/100x100?text=${encodeURIComponent(fileExt.toUpperCase())}`;
+
+      // Créer un document mock
+      const mockDocument: ClaimDocument = {
+        id: `doc-${Date.now()}`,
         name: file.name,
-        type: documentType,
-        url: publicUrl,
+        type: isImage ? 'image' : 'document',
+        url: mockUrl,
+        uploadDate: new Date(),
         category,
-        uploaded_by: (await supabase.auth.getUser()).data.user?.id
-      })
-      .select()
-      .single();
+        // Dans un environnement réel, cela serait l'ID de l'utilisateur actuel
+        uploadedBy: 'mock-user-id'
+      };
 
-    if (error) {
-      throw new Error(`Erreur lors de l'enregistrement du document: ${error.message}`);
+      return mockDocument;
+    } catch (error) {
+      console.error(`Error uploading document for claim ${claimId}:`, error);
+      throw new Error('Failed to upload document');
     }
+  },
 
-    // Retourner le document formaté
-    return {
-      id: data.id,
-      name: data.name,
-      type: data.type,
-      url: data.url,
-      uploadDate: new Date(data.upload_date),
-      category: data.category
-    };
-  }
+  // Fonctions utilitaires pour transformer les données
+
+  // transformClaimsData(data: any[]): Claim[] {
+  //   return data.map(item => this.transformClaimData(item));
+  // },
+
+  // transformClaimData(data: any): Claim {
+  //   return {
+  //     id: data.id,
+  //     claimNumber: data.claim_number,
+  //     clientName: data.client_name,
+  //     clientId: data.client_id,
+  //     creationDate: new Date(data.creation_date),
+  //     status: data.status as ClaimStatus,
+  //     department: data.department,
+  //     identifiedCause: data.identified_cause,
+  //     installed: data.installed,
+  //     installationDate: data.installation_date ? new Date(data.installation_date) : undefined,
+  //     invoiceLink: data.invoice_link,
+  //     solutionAmount: parseFloat(data.solution_amount || 0),
+  //     claimedAmount: parseFloat(data.claimed_amount || 0),
+  //     savedAmount: parseFloat(data.saved_amount || 0),
+  //     description: data.description,
+  //     products: data.products || [],
+  //     documents: data.documents || [],
+  //     lastUpdated: new Date(data.last_updated)
+  //   };
+  // },
+
+  // transformClaimForInsert(claim: Partial<Claim>): any {
+  //   return {
+  //     claim_number: claim.claimNumber,
+  //     client_name: claim.clientName,
+  //     client_id: claim.clientId,
+  //     status: claim.status || ClaimStatus.New,
+  //     department: claim.department,
+  //     identified_cause: claim.identifiedCause,
+  //     installed: claim.installed,
+  //     installation_date: claim.installationDate,
+  //     invoice_link: claim.invoiceLink,
+  //     solution_amount: claim.solutionAmount || 0,
+  //     claimed_amount: claim.claimedAmount || 0,
+  //     saved_amount: claim.savedAmount || 0,
+  //     description: claim.description,
+  //     creation_date: new Date(),
+  //     last_updated: new Date()
+  //   };
+  // },
+
+  // transformClaimForUpdate(updates: Partial<Claim>): any {
+  //   const result: any = {};
+  //
+  //   if (updates.claimNumber) result.claim_number = updates.claimNumber;
+  //   if (updates.clientName) result.client_name = updates.clientName;
+  //   if (updates.clientId) result.client_id = updates.clientId;
+  //   if (updates.status) result.status = updates.status;
+  //   if (updates.department) result.department = updates.department;
+  //   if (updates.identifiedCause !== undefined) result.identified_cause = updates.identifiedCause;
+  //   if (updates.installed !== undefined) result.installed = updates.installed;
+  //   if (updates.installationDate) result.installation_date = updates.installationDate;
+  //   if (updates.invoiceLink !== undefined) result.invoice_link = updates.invoiceLink;
+  //   if (updates.solutionAmount !== undefined) result.solution_amount = updates.solutionAmount;
+  //   if (updates.claimedAmount !== undefined) result.claimed_amount = updates.claimedAmount;
+  //   if (updates.savedAmount !== undefined) result.saved_amount = updates.savedAmount;
+  //   if (updates.description !== undefined) result.description = updates.description;
+  //
+  //   result.last_updated = new Date();
+  //
+  //   return result;
+  // }
 };
