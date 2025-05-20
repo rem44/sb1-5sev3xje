@@ -23,8 +23,9 @@ function App() {
               </RequireAuth>
             }>
               <Route index element={<Dashboard />} />
-              <Route path="claims/:id" element={<ClaimDetails />} />
+              {/* Important: More specific route comes first */}
               <Route path="claims/new" element={<CreateClaim />} />
+              <Route path="claims/:id" element={<ClaimDetails />} />
             </Route>
           </Routes>
         </Router>

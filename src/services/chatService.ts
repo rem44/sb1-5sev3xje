@@ -1,4 +1,5 @@
 // src/services/chatService.ts
+import { v4 as uuidv4 } from 'uuid';
 import { supabase } from './supabase';
 
 export interface ChatMessage {
@@ -16,171 +17,140 @@ export interface ChatSession {
   updatedAt: Date;
 }
 
+// Mock responses for demo purposes
+const mockResponses = [
+  "I understand your concern about the manufacturing defect. Based on our analysis procedures, I recommend documenting the issue with photos and measurements as evidence.",
+  "For urgent claims like this, you should follow protocol C-12 from our handbook. This ensures faster processing and resolution.",
+  "The standard procedure for partial refunds involves calculating depreciation based on usage time. I can help you with that calculation if you have the installation date.",
+  "Based on our company policy, shipping damage claims need to be reported within 72 hours of receipt with photographic evidence.",
+  "I've checked our database and this type of claim typically takes 5-7 business days to process once all documentation is submitted.",
+];
+
+// Simple function to get a random response from our mock responses
+const getRandomResponse = (query: string) => {
+  // For a more realistic demo, tailor responses based on keywords in the query
+  if (query.toLowerCase().includes('defect') || query.toLowerCase().includes('manufacturing')) {
+    return mockResponses[0];
+  } else if (query.toLowerCase().includes('urgent')) {
+    return mockResponses[1];
+  } else if (query.toLowerCase().includes('refund') || query.toLowerCase().includes('partial')) {
+    return mockResponses[2];
+  } else if (query.toLowerCase().includes('shipping') || query.toLowerCase().includes('damage')) {
+    return mockResponses[3];
+  } else {
+    return mockResponses[4];
+  }
+};
+
+// Get stored sessions from localStorage
+const getStoredSessions = (): ChatSession[] => {
+  const storedSessions = localStorage.getItem('chat_sessions');
+  return storedSessions ? JSON.parse(storedSessions) : [];
+};
+
+// Save sessions to localStorage
+const saveSessionsToStorage = (sessions: ChatSession[]) => {
+  localStorage.setItem('chat_sessions', JSON.stringify(sessions));
+};
+
+// Get messages for a session from localStorage
+const getStoredSessionMessages = (sessionId: string): ChatMessage[] => {
+  const storedMessages = localStorage.getItem(`chat_messages_${sessionId}`);
+  return storedMessages ? JSON.parse(storedMessages) : [];
+};
+
+// Save messages for a session to localStorage
+const saveMessagesToStorage = (sessionId: string, messages: ChatMessage[]) => {
+  localStorage.setItem(`chat_messages_${sessionId}`, JSON.stringify(messages));
+};
+
 export const chatService = {
   async sendMessage(message: string, sessionId?: string): Promise<{response: string, sessionId: string}> {
     try {
-      // Déterminer si une nouvelle session doit être créée
+      // Determine if we need to create a new session
       const isNewSession = !sessionId;
-      let chatSessionId = sessionId;
+      let chatSessionId = sessionId || uuidv4();
 
-      // Si on n'a pas d'ID de session, créer une nouvelle session
+      // If it's a new session, create one and save it
       if (isNewSession) {
-        const userId = (await supabase.auth.getUser()).data.user?.id;
-
-        // Générer un titre basé sur le premier message
+        // Generate a title based on the first message
         const title = message.length > 30
           ? message.substring(0, 30) + '...'
           : message;
 
-        // Créer la session dans Supabase
-        const { data, error } = await supabase
-          .from('chat_sessions')
-          .insert({
-            user_id: userId,
-            title,
-            created_at: new Date(),
-            updated_at: new Date()
-          })
-          .select('id')
-          .single();
+        const newSession: ChatSession = {
+          id: chatSessionId,
+          title,
+          messages: [],
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
 
-        if (error) {
-          throw new Error(`Erreur lors de la création de la session: ${error.message}`);
-        }
-
-        chatSessionId = data.id;
+        const sessions = getStoredSessions();
+        sessions.push(newSession);
+        saveSessionsToStorage(sessions);
       }
 
-      // Enregistrer le message de l'utilisateur
-      const userMessageData = {
-        session_id: chatSessionId,
+      // Get existing messages for this session
+      const sessionMessages = getStoredSessionMessages(chatSessionId);
+
+      // Add the user message
+      const userMessage: ChatMessage = {
+        id: uuidv4(),
         content: message,
         role: 'user',
         timestamp: new Date()
       };
+      sessionMessages.push(userMessage);
 
-      const { error: userMsgError } = await supabase
-        .from('chat_messages')
-        .insert(userMessageData);
+      // Generate a response (in a real app, this would be an API call)
+      const responseText = getRandomResponse(message);
 
-      if (userMsgError) {
-        throw new Error(`Erreur lors de l'enregistrement du message: ${userMsgError.message}`);
-      }
-
-      // Appeler l'API du chatbot
-      const response = await fetch('http://localhost:3001/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          message,
-          sessionId: chatSessionId
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erreur lors de l'appel à l'API: ${response.statusText}`);
-      }
-
-      const data = await response.json();
-
-      // Enregistrer la réponse de l'assistant
-      const assistantMessageData = {
-        session_id: chatSessionId,
-        content: data.response,
+      // Add the assistant message
+      const assistantMessage: ChatMessage = {
+        id: uuidv4(),
+        content: responseText,
         role: 'assistant',
         timestamp: new Date()
       };
+      sessionMessages.push(assistantMessage);
 
-      const { error: assistantMsgError } = await supabase
-        .from('chat_messages')
-        .insert(assistantMessageData);
+      // Save the updated messages
+      saveMessagesToStorage(chatSessionId, sessionMessages);
 
-      if (assistantMsgError) {
-        throw new Error(`Erreur lors de l'enregistrement de la réponse: ${assistantMsgError.message}`);
-      }
-
-      // Mettre à jour la date de dernière modification de la session
-      const { error: updateError } = await supabase
-        .from('chat_sessions')
-        .update({ updated_at: new Date() })
-        .eq('id', chatSessionId);
-
-      if (updateError) {
-        console.error('Erreur lors de la mise à jour de la session:', updateError);
+      // Update the session's updatedAt timestamp
+      const sessions = getStoredSessions();
+      const sessionIndex = sessions.findIndex(s => s.id === chatSessionId);
+      if (sessionIndex >= 0) {
+        sessions[sessionIndex].updatedAt = new Date();
+        saveSessionsToStorage(sessions);
       }
 
       return {
-        response: data.response,
-        sessionId: chatSessionId as string
+        response: responseText,
+        sessionId: chatSessionId
       };
     } catch (error) {
-      console.error('Erreur dans le service de chat:', error);
+      console.error('Error in chat service:', error);
       throw error;
     }
   },
 
   async getSessionMessages(sessionId: string): Promise<ChatMessage[]> {
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('session_id', sessionId)
-      .order('timestamp', { ascending: true });
-
-    if (error) {
-      throw new Error(`Erreur lors de la récupération des messages: ${error.message}`);
-    }
-
-    return data.map(msg => ({
-      id: msg.id,
-      content: msg.content,
-      role: msg.role,
-      timestamp: new Date(msg.timestamp)
-    }));
+    return getStoredSessionMessages(sessionId);
   },
 
   async getSessions(): Promise<ChatSession[]> {
-    const userId = (await supabase.auth.getUser()).data.user?.id;
-
-    const { data, error } = await supabase
-      .from('chat_sessions')
-      .select('*')
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false });
-
-    if (error) {
-      throw new Error(`Erreur lors de la récupération des sessions: ${error.message}`);
-    }
-
-    return data.map(session => ({
-      id: session.id,
-      title: session.title,
-      messages: [],
-      createdAt: new Date(session.created_at),
-      updatedAt: new Date(session.updated_at)
-    }));
+    return getStoredSessions();
   },
 
   async deleteSession(sessionId: string): Promise<void> {
-    // Supprimer d'abord les messages (contrainte de clé étrangère)
-    const { error: messagesError } = await supabase
-      .from('chat_messages')
-      .delete()
-      .eq('session_id', sessionId);
+    // Remove messages
+    localStorage.removeItem(`chat_messages_${sessionId}`);
 
-    if (messagesError) {
-      throw new Error(`Erreur lors de la suppression des messages: ${messagesError.message}`);
-    }
-
-    // Supprimer ensuite la session
-    const { error: sessionError } = await supabase
-      .from('chat_sessions')
-      .delete()
-      .eq('id', sessionId);
-
-    if (sessionError) {
-      throw new Error(`Erreur lors de la suppression de la session: ${sessionError.message}`);
-    }
+    // Remove session from sessions list
+    const sessions = getStoredSessions();
+    const updatedSessions = sessions.filter(s => s.id !== sessionId);
+    saveSessionsToStorage(updatedSessions);
   }
 };

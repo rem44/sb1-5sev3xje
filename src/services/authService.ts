@@ -1,5 +1,6 @@
 // src/services/authService.ts
 import { supabase } from './supabase';
+import { isSupabaseConfigured } from './supabase';
 
 export interface AuthUser {
   id: string;
@@ -9,9 +10,31 @@ export interface AuthUser {
   avatarUrl?: string;
 }
 
-// Assurez-vous d'exporter authService comme export nommé (named export)
+// A mock user for development purposes
+const MOCK_USER: AuthUser = {
+  id: 'mock-user-id',
+  email: 'demo@example.com',
+  role: 'admin',
+  fullName: 'Demo User',
+};
+
 export const authService = {
   async signIn(email: string, password: string): Promise<AuthUser> {
+    // If Supabase is not configured, use mock authentication
+    if (!isSupabaseConfigured()) {
+      console.log('Using mock authentication (Supabase not configured)');
+
+      // Very simple mock auth - in a real app, you'd want better security
+      if (email === 'demo@example.com' && password === 'password') {
+        // Store auth in localStorage to persist the session
+        localStorage.setItem('mock_auth_user', JSON.stringify(MOCK_USER));
+        return MOCK_USER;
+      } else {
+        throw new Error('Invalid email or password');
+      }
+    }
+
+    // Use actual Supabase authentication
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -25,23 +48,24 @@ export const authService = {
       return {
         id: data.user?.id || 'unknown',
         email: data.user?.email || email,
-        role: 'user',
+        role: data.user?.user_metadata?.role || 'user',
         fullName: data.user?.user_metadata?.full_name || email.split('@')[0],
         avatarUrl: data.user?.user_metadata?.avatar_url,
       };
     } catch (error) {
       console.error('Error signing in:', error);
-      // Pour les tests, retournons un utilisateur fictif en cas d'erreur
-      return {
-        id: 'mock-user-id',
-        email: email,
-        role: 'user',
-        fullName: email.split('@')[0],
-      };
+      throw error;
     }
   },
 
   async signOut(): Promise<void> {
+    // If using mock auth, clear the mock user
+    if (!isSupabaseConfigured()) {
+      localStorage.removeItem('mock_auth_user');
+      return;
+    }
+
+    // Otherwise use Supabase signOut
     try {
       const { error } = await supabase.auth.signOut();
 
@@ -50,10 +74,18 @@ export const authService = {
       }
     } catch (error) {
       console.error('Error signing out:', error);
+      throw error;
     }
   },
 
   async getCurrentUser(): Promise<AuthUser | null> {
+    // If using mock auth, check localStorage for mock user
+    if (!isSupabaseConfigured()) {
+      const mockUser = localStorage.getItem('mock_auth_user');
+      return mockUser ? JSON.parse(mockUser) : null;
+    }
+
+    // Otherwise use Supabase
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
@@ -64,8 +96,8 @@ export const authService = {
       return {
         id: session.user.id,
         email: session.user.email || '',
-        role: 'user', // Dans une application réelle, vous récupéreriez cela depuis la base de données
-        fullName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Utilisateur',
+        role: session.user.user_metadata?.role || 'user',
+        fullName: session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'User',
         avatarUrl: session.user.user_metadata?.avatar_url,
       };
     } catch (error) {
