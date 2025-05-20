@@ -2,6 +2,7 @@ import React from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
+import ChatInterface from '../chat/ChatInterface';
 
 const Layout: React.FC = () => {
   return (

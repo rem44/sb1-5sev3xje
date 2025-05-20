@@ -1,24 +1,35 @@
+// src/App.tsx
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
 import ClaimDetails from './pages/ClaimDetails';
 import CreateClaim from './pages/CreateClaim';
+import Login from './pages/Login';
 import { ClaimsProvider } from './context/ClaimsContext';
+import { AuthProvider } from './context/AuthContext';
+import RequireAuth from './components/auth/RequireAuth';
 
 function App() {
   return (
-    <ClaimsProvider>
-      <Router>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<Dashboard />} />
-            <Route path="claims/:id" element={<ClaimDetails />} />
-            <Route path="claims/new" element={<CreateClaim />} />
-          </Route>
-        </Routes>
-      </Router>
-    </ClaimsProvider>
+    <AuthProvider>
+      <ClaimsProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/" element={
+              <RequireAuth>
+                <Layout />
+              </RequireAuth>
+            }>
+              <Route index element={<Dashboard />} />
+              <Route path="claims/:id" element={<ClaimDetails />} />
+              <Route path="claims/new" element={<CreateClaim />} />
+            </Route>
+          </Routes>
+        </Router>
+      </ClaimsProvider>
+    </AuthProvider>
   );
 }
 

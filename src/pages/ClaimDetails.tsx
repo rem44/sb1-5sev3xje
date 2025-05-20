@@ -1,13 +1,16 @@
+import Communications from '../components/claims/Communications';
+import Resolution from '../components/claims/Resolution';
+import Checklists from '../components/claims/Checklists';
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useClaims } from '../context/ClaimsContext';
 import { format } from 'date-fns';
 import StatusBadge from '../components/ui/StatusBadge';
 import { ClaimStatus } from '../types/claim';
-import { 
-  ArrowLeft, 
-  Printer, 
-  FileDown, 
+import {
+  ArrowLeft,
+  Printer,
+  FileDown,
   Edit,
   Info,
   Package,
@@ -33,9 +36,9 @@ const InfoField: React.FC<InfoFieldProps> = ({ label, value, editable, icon, typ
       <label className="block text-sm font-medium text-gray-500 mb-1">
         {label}
       </label>
-      
+
       {editable ? (
-        <input 
+        <input
           type={type}
           className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0C3B5E] focus:border-transparent"
           defaultValue={value}
@@ -57,15 +60,15 @@ const ClaimDetails: React.FC = () => {
   const { getClaim, updateClaim } = useClaims();
   const [activeTab, setActiveTab] = useState('general');
   const [isEditing, setIsEditing] = useState(false);
-  
+
   const claim = getClaim(id as string);
-  
+
   if (!claim) {
     return (
       <div className="flex flex-col items-center justify-center h-full">
         <h2 className="text-xl font-semibold mb-2">Claim not found</h2>
         <p className="text-gray-500 mb-4">The claim you're looking for doesn't exist or has been removed.</p>
-        <button 
+        <button
           onClick={() => navigate('/')}
           className="bg-[#0C3B5E] text-white px-4 py-2 rounded-md hover:bg-[#0a3252] transition-colors"
         >
@@ -76,7 +79,7 @@ const ClaimDetails: React.FC = () => {
   }
 
   const handleStatusChange = (newStatus: ClaimStatus) => {
-    updateClaim(claim.id, { 
+    updateClaim(claim.id, {
       status: newStatus,
       lastUpdated: new Date()
     });
@@ -95,7 +98,7 @@ const ClaimDetails: React.FC = () => {
       {/* Header with actions */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
         <div className="flex items-center mb-4 md:mb-0">
-          <button 
+          <button
             onClick={() => navigate('/')}
             className="mr-3 text-gray-500 hover:text-[#0C3B5E] transition-colors"
             aria-label="Back to dashboard"
@@ -110,7 +113,7 @@ const ClaimDetails: React.FC = () => {
             <p className="text-gray-500">{claim.clientName} • Created {format(new Date(claim.creationDate), 'MMM d, yyyy')}</p>
           </div>
         </div>
-        
+
         <div className="flex space-x-2">
           <button className="bg-white border border-gray-300 text-gray-700 px-3 py-2 rounded hover:bg-gray-50 transition-colors flex items-center">
             <Printer size={16} className="mr-1" />
@@ -120,7 +123,7 @@ const ClaimDetails: React.FC = () => {
             <FileDown size={16} className="mr-1" />
             <span className="hidden sm:inline">Export</span>
           </button>
-          <button 
+          <button
             className={`${isEditing ? 'bg-green-600 hover:bg-green-700' : 'bg-[#0C3B5E] hover:bg-[#0a3252]'} text-white px-3 py-2 rounded transition-colors flex items-center`}
             onClick={() => setIsEditing(!isEditing)}
           >
@@ -129,7 +132,7 @@ const ClaimDetails: React.FC = () => {
           </button>
         </div>
       </div>
-      
+
       {/* Status action bar */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
@@ -139,113 +142,113 @@ const ClaimDetails: React.FC = () => {
               <StatusBadge status={claim.status} />
             </div>
           </div>
-          
+
           <div className="flex flex-wrap gap-2">
             {claim.status !== ClaimStatus.New && (
-              <StatusButton 
-                status={ClaimStatus.New} 
-                currentStatus={claim.status} 
+              <StatusButton
+                status={ClaimStatus.New}
+                currentStatus={claim.status}
                 onClick={() => handleStatusChange(ClaimStatus.New)}
               />
             )}
             {claim.status !== ClaimStatus.Screening && (
-              <StatusButton 
-                status={ClaimStatus.Screening} 
-                currentStatus={claim.status} 
+              <StatusButton
+                status={ClaimStatus.Screening}
+                currentStatus={claim.status}
                 onClick={() => handleStatusChange(ClaimStatus.Screening)}
               />
             )}
             {claim.status !== ClaimStatus.Analyzing && (
-              <StatusButton 
-                status={ClaimStatus.Analyzing} 
-                currentStatus={claim.status} 
+              <StatusButton
+                status={ClaimStatus.Analyzing}
+                currentStatus={claim.status}
                 onClick={() => handleStatusChange(ClaimStatus.Analyzing)}
               />
             )}
             {claim.status !== ClaimStatus.Negotiation && (
-              <StatusButton 
-                status={ClaimStatus.Negotiation} 
-                currentStatus={claim.status} 
+              <StatusButton
+                status={ClaimStatus.Negotiation}
+                currentStatus={claim.status}
                 onClick={() => handleStatusChange(ClaimStatus.Negotiation)}
               />
             )}
             {claim.status !== ClaimStatus.Accepted && (
-              <StatusButton 
-                status={ClaimStatus.Accepted} 
-                currentStatus={claim.status} 
+              <StatusButton
+                status={ClaimStatus.Accepted}
+                currentStatus={claim.status}
                 onClick={() => handleStatusChange(ClaimStatus.Accepted)}
               />
             )}
             {claim.status !== ClaimStatus.Closed && (
-              <StatusButton 
-                status={ClaimStatus.Closed} 
-                currentStatus={claim.status} 
+              <StatusButton
+                status={ClaimStatus.Closed}
+                currentStatus={claim.status}
                 onClick={() => handleStatusChange(ClaimStatus.Closed)}
               />
             )}
           </div>
         </div>
       </div>
-      
+
       {/* Tabs */}
       <div className="bg-white rounded-t-lg shadow-sm border-b">
         <div className="flex overflow-x-auto">
-          <TabButton 
+          <TabButton
             icon={<Info size={16} />}
-            label="General" 
-            active={activeTab === 'general'} 
-            onClick={() => setActiveTab('general')} 
+            label="General"
+            active={activeTab === 'general'}
+            onClick={() => setActiveTab('general')}
           />
-          <TabButton 
+          <TabButton
             icon={<Package size={16} />}
-            label="Products" 
-            active={activeTab === 'products'} 
-            onClick={() => setActiveTab('products')} 
+            label="Products"
+            active={activeTab === 'products'}
+            onClick={() => setActiveTab('products')}
           />
-          <TabButton 
+          <TabButton
             icon={<Camera size={16} />}
-            label="Documents" 
-            active={activeTab === 'documents'} 
-            onClick={() => setActiveTab('documents')} 
+            label="Documents"
+            active={activeTab === 'documents'}
+            onClick={() => setActiveTab('documents')}
             badge={claim.documents.length}
           />
-          <TabButton 
+          <TabButton
             icon={<CheckSquare size={16} />}
-            label="Checklists" 
-            active={activeTab === 'checklists'} 
-            onClick={() => setActiveTab('checklists')} 
+            label="Checklists"
+            active={activeTab === 'checklists'}
+            onClick={() => setActiveTab('checklists')}
           />
-          <TabButton 
+          <TabButton
             icon={<MessageSquare size={16} />}
-            label="Communications" 
-            active={activeTab === 'communications'} 
-            onClick={() => setActiveTab('communications')} 
+            label="Communications"
+            active={activeTab === 'communications'}
+            onClick={() => setActiveTab('communications')}
           />
-          <TabButton 
+          <TabButton
             icon={<Banknote size={16} />}
-            label="Resolution" 
-            active={activeTab === 'resolution'} 
-            onClick={() => setActiveTab('resolution')} 
+            label="Resolution"
+            active={activeTab === 'resolution'}
+            onClick={() => setActiveTab('resolution')}
           />
         </div>
       </div>
-      
+
       {/* Tab content */}
       <div className="bg-white rounded-b-lg shadow-sm p-6 mb-6">
         {activeTab === 'general' && (
           <div className="animate-fadeIn">
             <h2 className="text-xl font-medium mb-6">General Information</h2>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-medium mb-4">Claim Information</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <InfoField label="Claim Number" value={claim.claimNumber} editable={isEditing} />
-                    <InfoField 
-                      label="Creation Date" 
-                      value={format(new Date(claim.creationDate), 'MMM d, yyyy')} 
-                      editable={false} 
+                    <InfoField
+                      label="Creation Date"
+                      value={format(new Date(claim.creationDate), 'MMM d, yyyy')}
+                      editable={false}
                       icon={<Calendar size={14} className="text-gray-400" />}
                     />
                     <InfoField label="Status" value={claim.status} editable={false} />
@@ -257,16 +260,16 @@ const ClaimDetails: React.FC = () => {
                       </label>
                       <div className="flex items-center mt-2">
                         <div className="relative inline-block w-10 mr-2 align-middle select-none">
-                          <input 
-                            type="checkbox" 
-                            id="installed-toggle" 
-                            checked={claim.installed} 
+                          <input
+                            type="checkbox"
+                            id="installed-toggle"
+                            checked={claim.installed}
                             onChange={(e) => updateClaim(claim.id, { installed: e.target.checked })}
                             className="absolute block w-6 h-6 rounded-full bg-white border-4 border-gray-300 appearance-none cursor-pointer checked:right-0 checked:border-[#0C3B5E] transition-all duration-200"
                             disabled={!isEditing}
                           />
-                          <label 
-                            htmlFor="installed-toggle" 
+                          <label
+                            htmlFor="installed-toggle"
                             className="block overflow-hidden h-6 rounded-full bg-gray-300 cursor-pointer"
                           ></label>
                         </div>
@@ -276,9 +279,9 @@ const ClaimDetails: React.FC = () => {
                       </div>
                     </div>
                     {claim.installed && (
-                      <InfoField 
-                        label="Installation Date" 
-                        value={claim.installationDate ? format(new Date(claim.installationDate), 'yyyy-MM-dd') : ''} 
+                      <InfoField
+                        label="Installation Date"
+                        value={claim.installationDate ? format(new Date(claim.installationDate), 'yyyy-MM-dd') : ''}
                         editable={isEditing}
                         type="date"
                         onChange={handleInstallationDateChange}
@@ -286,7 +289,7 @@ const ClaimDetails: React.FC = () => {
                     )}
                   </div>
                 </div>
-                
+
                 <div>
                   <h3 className="text-lg font-medium mb-4">Client Information</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -296,7 +299,7 @@ const ClaimDetails: React.FC = () => {
                   </div>
                 </div>
               </div>
-              
+
               <div className="space-y-6">
                 <div>
                   <h3 className="text-lg font-medium mb-4">Financial Details</h3>
@@ -311,7 +314,7 @@ const ClaimDetails: React.FC = () => {
                         <p className="text-xl font-semibold text-red-600">${claim.claimedAmount.toLocaleString()}</p>
                       </div>
                     </div>
-                    
+
                     <div className="border-t border-gray-200 pt-4">
                       <div className="flex justify-between items-center">
                         <p className="text-sm font-medium">Savings</p>
@@ -323,11 +326,11 @@ const ClaimDetails: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 <div>
                   <h3 className="text-lg font-medium mb-4">Description</h3>
                   {isEditing ? (
-                    <textarea 
+                    <textarea
                       className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0C3B5E] focus:border-transparent"
                       rows={5}
                       defaultValue={claim.description}
@@ -340,7 +343,7 @@ const ClaimDetails: React.FC = () => {
             </div>
           </div>
         )}
-        
+
         {activeTab === 'products' && (
           <div>
             <div className="flex justify-between items-center mb-4">
@@ -351,7 +354,7 @@ const ClaimDetails: React.FC = () => {
                 </button>
               )}
             </div>
-            
+
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -386,10 +389,10 @@ const ClaimDetails: React.FC = () => {
                     <tr key={product.id} className="hover:bg-gray-50">
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                         {isEditing ? (
-                          <input 
-                            type="text" 
-                            className="w-full p-1 border border-gray-300 rounded" 
-                            defaultValue={product.description} 
+                          <input
+                            type="text"
+                            className="w-full p-1 border border-gray-300 rounded"
+                            defaultValue={product.description}
                           />
                         ) : (
                           product.description
@@ -403,10 +406,10 @@ const ClaimDetails: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {isEditing ? (
-                          <input 
-                            type="number" 
-                            className="w-20 p-1 border border-gray-300 rounded" 
-                            defaultValue={product.claimedQuantity} 
+                          <input
+                            type="number"
+                            className="w-20 p-1 border border-gray-300 rounded"
+                            defaultValue={product.claimedQuantity}
                           />
                         ) : (
                           product.claimedQuantity
@@ -443,7 +446,7 @@ const ClaimDetails: React.FC = () => {
             </div>
           </div>
         )}
-        
+
         {activeTab === 'documents' && (
           <div>
             <div className="flex justify-between items-center mb-4">
@@ -454,19 +457,19 @@ const ClaimDetails: React.FC = () => {
                 </button>
               )}
             </div>
-            
+
             <div className="mb-6">
               <h4 className="text-md font-medium mb-3">Photos</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {claim.documents.filter(doc => doc.type === 'image').map((image) => (
-                  <div 
-                    key={image.id} 
+                  <div
+                    key={image.id}
                     className="relative group overflow-hidden rounded-lg shadow-sm border border-gray-200"
                   >
-                    <img 
-                      src={image.url} 
-                      alt={image.name} 
-                      className="w-full h-36 object-cover group-hover:scale-105 transition-transform duration-300" 
+                    <img
+                      src={image.url}
+                      alt={image.name}
+                      className="w-full h-36 object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                     <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-60 text-white p-2 text-sm truncate">
                       {image.name}
@@ -480,7 +483,7 @@ const ClaimDetails: React.FC = () => {
                     )}
                   </div>
                 ))}
-                
+
                 {isEditing && (
                   <div className="flex items-center justify-center h-36 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors">
                     <div className="text-center p-4">
@@ -493,7 +496,7 @@ const ClaimDetails: React.FC = () => {
                 )}
               </div>
             </div>
-            
+
             <div>
               <h4 className="text-md font-medium mb-3">Files</h4>
               <div className="bg-gray-50 rounded-lg">
@@ -537,7 +540,7 @@ const ClaimDetails: React.FC = () => {
                       </div>
                     </li>
                   ))}
-                  
+
                   {isEditing && (
                     <li className="p-4">
                       <div className="flex items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-lg hover:border-gray-400 transition-colors">
@@ -556,12 +559,12 @@ const ClaimDetails: React.FC = () => {
             </div>
           </div>
         )}
-        
+
         {activeTab === 'checklists' && (
           <div>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-medium">Analysis & Checklists</h3>
-              <select 
+              <select
                 className="p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0C3B5E] focus:border-transparent"
                 disabled={!isEditing}
               >
@@ -572,50 +575,50 @@ const ClaimDetails: React.FC = () => {
                 <option value="shipping">Shipping Damage</option>
               </select>
             </div>
-            
+
             <div className="bg-gray-50 p-6 rounded-lg">
               <div className="mb-6">
                 <h4 className="text-md font-medium mb-3">Manufacturing Defect Analysis</h4>
                 <div className="space-y-3">
-                  <ChecklistItem 
-                    label="Backing separation present" 
-                    checked={true} 
-                    editable={isEditing} 
+                  <ChecklistItem
+                    label="Backing separation present"
+                    checked={true}
+                    editable={isEditing}
                   />
-                  <ChecklistItem 
-                    label="Material meets specification standards" 
-                    checked={false} 
-                    editable={isEditing} 
+                  <ChecklistItem
+                    label="Material meets specification standards"
+                    checked={false}
+                    editable={isEditing}
                   />
-                  <ChecklistItem 
-                    label="Pattern/color consistent with standards" 
-                    checked={true} 
-                    editable={isEditing} 
+                  <ChecklistItem
+                    label="Pattern/color consistent with standards"
+                    checked={true}
+                    editable={isEditing}
                   />
-                  <ChecklistItem 
-                    label="Dimensions within tolerance" 
-                    checked={true} 
-                    editable={isEditing} 
+                  <ChecklistItem
+                    label="Dimensions within tolerance"
+                    checked={true}
+                    editable={isEditing}
                   />
                 </div>
-                
+
                 <div className="mt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
                   {isEditing ? (
-                    <textarea 
+                    <textarea
                       className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0C3B5E] focus:border-transparent"
                       rows={3}
                       placeholder="Enter analysis notes..."
                     ></textarea>
                   ) : (
                     <p className="p-3 bg-white rounded border border-gray-200 text-gray-700 text-sm">
-                      Inspection revealed inconsistent backing adhesion in multiple samples. 
+                      Inspection revealed inconsistent backing adhesion in multiple samples.
                       Lab tests confirm adhesive did not meet minimum strength requirements in affected batch.
                     </p>
                   )}
                 </div>
               </div>
-              
+
               <div>
                 <h4 className="text-md font-medium mb-3">Technical Measurements</h4>
                 <table className="min-w-full divide-y divide-gray-200">
@@ -636,35 +639,35 @@ const ClaimDetails: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    <MeasurementRow 
-                      name="Adhesive strength" 
-                      expected="≥ 5.0 lbs/in" 
-                      actual="3.2 lbs/in" 
-                      pass={false} 
-                      editable={isEditing} 
+                    <MeasurementRow
+                      name="Adhesive strength"
+                      expected="≥ 5.0 lbs/in"
+                      actual="3.2 lbs/in"
+                      pass={false}
+                      editable={isEditing}
                     />
-                    <MeasurementRow 
-                      name="Backing thickness" 
-                      expected={`0.125" ± 0.01"`} 
-                      actual={`0.122"`} 
-                      pass={true} 
-                      editable={isEditing} 
+                    <MeasurementRow
+                      name="Backing thickness"
+                      expected={`0.125" ± 0.01"`}
+                      actual={`0.122"`}
+                      pass={true}
+                      editable={isEditing}
                     />
-                    <MeasurementRow 
-                      name="Dimensional stability" 
-                      expected="< 0.2% change" 
-                      actual="0.15% change" 
-                      pass={true} 
-                      editable={isEditing} 
+                    <MeasurementRow
+                      name="Dimensional stability"
+                      expected="< 0.2% change"
+                      actual="0.15% change"
+                      pass={true}
+                      editable={isEditing}
                     />
                   </tbody>
                 </table>
               </div>
-              
+
               <div className="mt-6 border-t border-gray-200 pt-6">
                 <h4 className="text-md font-medium mb-3">Technical Conclusion</h4>
                 {isEditing ? (
-                  <textarea 
+                  <textarea
                     className="w-full p-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#0C3B5E] focus:border-transparent"
                     rows={4}
                     defaultValue="Based on our analysis, we confirm a manufacturing defect in the adhesive application process. Batch #KL-238 shows significantly reduced backing adhesion strength below our minimum standards, which explains the customer's report of backing separation. This is a confirmed manufacturing defect."
@@ -672,8 +675,8 @@ const ClaimDetails: React.FC = () => {
                 ) : (
                   <div className="p-4 bg-white rounded-lg border border-gray-200">
                     <p className="text-gray-700">
-                      Based on our analysis, we confirm a manufacturing defect in the adhesive application process. 
-                
+                      Based on our analysis, we confirm a manufacturing defect in the adhesive application process.
+
                       Batch #KL-238 shows significantly reduced backing adhesion strength below our minimum standards,
                       which explains the customer's report of backing separation. This is a confirmed manufacturing defect.
                     </p>
@@ -683,15 +686,74 @@ const ClaimDetails: React.FC = () => {
             </div>
           </div>
         )}
-        
-        {activeTab !== 'general' && activeTab !== 'products' && activeTab !== 'documents' && activeTab !== 'checklists' && (
-          <div className="flex items-center justify-center p-12">
-            <div className="text-center">
-              <h3 className="text-lg font-medium text-gray-500 mb-2">This section is under development</h3>
-              <p className="text-gray-400">The {activeTab} tab content is coming soon.</p>
-            </div>
-          </div>
-        )}
+
+        {activeTab === 'communications' && (
+  <div className="animate-fadeIn">
+    <Communications
+      communications={claim.communications}
+      isEditing={isEditing}
+      claimId={claim.id}
+      onAddCommunication={async (comm) => {
+        // L'implémentation réelle appellerait une API
+        // Pour l'instant, on fait simplement une mise à jour locale
+        const newComm = {
+          id: Math.random().toString(36).substr(2, 9),
+          date: new Date(),
+          ...comm
+        };
+        updateClaim(claim.id, {
+          communications: [...(claim.communications || []), newComm],
+          lastUpdated: new Date()
+        });
+      }}
+    />
+  </div>
+)}
+
+{activeTab === 'checklists' && (
+  <div className="animate-fadeIn">
+    <Checklists
+      checklists={claim.checklists}
+      isEditing={isEditing}
+      claimId={claim.id}
+      onUpdateChecklist={async (checklistId, items) => {
+        // L'implémentation réelle appellerait une API
+        const updatedChecklists = (claim.checklists || []).map(checklist =>
+          checklist.id === checklistId ? { ...checklist, items } : checklist
+        );
+        updateClaim(claim.id, {
+          checklists: updatedChecklists,
+          lastUpdated: new Date()
+        });
+      }}
+      onAddChecklist={async (type) => {
+        // L'implémentation réelle appellerait une API
+        const newChecklist = {
+          id: Math.random().toString(36).substr(2, 9),
+          type,
+          items: []
+        };
+        updateClaim(claim.id, {
+          checklists: [...(claim.checklists || []), newChecklist],
+          lastUpdated: new Date()
+        });
+      }}
+    />
+  </div>
+)}
+
+{activeTab === 'resolution' && (
+  <div className="animate-fadeIn">
+    <Resolution
+      claim={claim}
+      isEditing={isEditing}
+      onUpdateClaim={updateClaim}
+    />
+  </div>
+)}
+
+
+
       </div>
     </div>
   );
@@ -709,16 +771,16 @@ const StatusButton: React.FC<StatusButtonProps> = ({ status, currentStatus, onCl
     const statuses = Object.values(ClaimStatus);
     const currentIndex = statuses.indexOf(currentStatus);
     const newIndex = statuses.indexOf(status);
-    
+
     if (newIndex > currentIndex) {
       return 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100';
     } else {
       return 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100';
     }
   };
-  
+
   return (
-    <button 
+    <button
       onClick={onClick}
       className={`px-3 py-1 text-sm rounded-md border ${getButtonStyle()} transition-colors`}
     >
@@ -739,8 +801,8 @@ const TabButton: React.FC<TabButtonProps> = ({ icon, label, active, onClick, bad
   return (
     <button
       className={`flex items-center px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-        active 
-          ? 'border-[#0C3B5E] text-[#0C3B5E]' 
+        active
+          ? 'border-[#0C3B5E] text-[#0C3B5E]'
           : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
       }`}
       onClick={onClick}
@@ -765,8 +827,8 @@ interface ChecklistItemProps {
 const ChecklistItem: React.FC<ChecklistItemProps> = ({ label, checked, editable }) => {
   return (
     <div className="flex items-center">
-      <input 
-        type="checkbox" 
+      <input
+        type="checkbox"
         className="h-4 w-4 text-[#0C3B5E] focus:ring-[#0C3B5E] border-gray-300 rounded"
         checked={checked}
         readOnly={!editable}
@@ -797,9 +859,9 @@ const MeasurementRow: React.FC<MeasurementRowProps> = ({ name, expected, actual,
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
         {editable ? (
-          <input 
-            type="text" 
-            className="w-full p-1 border border-gray-300 rounded" 
+          <input
+            type="text"
+            className="w-full p-1 border border-gray-300 rounded"
             defaultValue={actual}
           />
         ) : (
@@ -808,8 +870,8 @@ const MeasurementRow: React.FC<MeasurementRowProps> = ({ name, expected, actual,
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         {editable ? (
-          <input 
-            type="checkbox" 
+          <input
+            type="checkbox"
             className="h-4 w-4 text-[#0C3B5E] focus:ring-[#0C3B5E] border-gray-300 rounded"
             checked={pass}
           />
