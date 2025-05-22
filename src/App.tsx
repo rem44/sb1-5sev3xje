@@ -11,20 +11,23 @@ import { AuthProvider } from './context/AuthContext';
 import RequireAuth from './components/auth/RequireAuth';
 import ChatInterface from './components/chat/ChatInterface';
 
-function App() {
+const App: React.FC = () => {
   return (
     <AuthProvider>
       <ClaimsProvider>
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={
-              <RequireAuth>
-                <Layout />
-              </RequireAuth>
-            }>
+            <Route 
+              path="/" 
+              element={
+                <RequireAuth>
+                  <Layout />
+                </RequireAuth>
+              }
+            >
               <Route index element={<Dashboard />} />
-              {/* Important: Route spécifique AVANT la route paramétrique */}
+              {/* Route spécifique AVANT la route paramétrique */}
               <Route path="claims/new" element={<CreateClaim />} />
               <Route path="claims/:id" element={<ClaimDetails />} />
             </Route>
@@ -34,7 +37,6 @@ function App() {
       </ClaimsProvider>
     </AuthProvider>
   );
-}
+};
 
-// ✅ Ajoutez cet export par défaut
 export default App;
