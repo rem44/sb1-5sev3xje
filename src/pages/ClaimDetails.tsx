@@ -57,26 +57,70 @@ const InfoField: React.FC<InfoFieldProps> = ({ label, value, editable, icon, typ
 const ClaimDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getClaim, updateClaim } = useClaims();
-  const [activeTab, setActiveTab] = useState('general');
-  const [isEditing, setIsEditing] = useState(false);
+  const { updateClaim } = useClaims();
 
-  const claim = getClaim(id as string);
+  const [claim, setClaim] = useState<Claim | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!claim) {
+  useEffect(() => {
+    const fetchClaim = async () => {
+      if (!id) return;
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const claimData = await claimService.getClaim(id);
+        if (claimData) {
+          setClaim(claimData);
+        } else {
+          setError('Claim not found');
+        }
+      } catch (err) {
+        console.error('Error loading claim:', err);
+        setError('Failed to load claim');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchClaim();
+  }, [id]);
+
+  if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center h-full">
-        <h2 className="text-xl font-semibold mb-2">Claim not found</h2>
-        <p className="text-gray-500 mb-4">The claim you're looking for doesn't exist or has been removed.</p>
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
+        <span className="ml-3 text-gray-600">Loading claim...</span>
+      </div>
+    );
+  }
+
+  if (error || !claim) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-red-600 text-xl mb-4">
+          {error || 'Claim not found'}
+        </div>
         <button
           onClick={() => navigate('/')}
-          className="bg-[#0C3B5E] text-white px-4 py-2 rounded-md hover:bg-[#0a3252] transition-colors"
+          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
         >
           Back to Dashboard
         </button>
       </div>
     );
   }
+
+  return (
+    <div>
+      {/* Render claim details here */}
+      <h1 className="text-2xl font-semibold mb-4">Claim #{claim.id}</h1>
+      {/* Add more details based on your layout */}
+    </div>
+  );
+};
 
   const handleStatusChange = (newStatus: ClaimStatus) => {
     updateClaim(claim.id, {
