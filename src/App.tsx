@@ -1,15 +1,4 @@
-// src/App.tsx
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Layout from './components/layout/Layout';
-import Dashboard from './pages/Dashboard';
-import ClaimDetails from './pages/ClaimDetails';
-import CreateClaim from './pages/CreateClaim';
-import Login from './pages/Login';
-import { ClaimsProvider } from './context/ClaimsContext';
-import { AuthProvider } from './context/AuthContext';
-import RequireAuth from './components/auth/RequireAuth';
-
+// src/App.tsx - Assurer l'ordre correct des routes
 function App() {
   return (
     <AuthProvider>
@@ -17,20 +6,15 @@ function App() {
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route
-              path="/"
-              element={
-                <RequireAuth>
-                  <Layout />
-                </RequireAuth>
-              }
-            >
+            <Route path="/" element={
+              <RequireAuth>
+                <Layout />
+              </RequireAuth>
+            }>
               <Route index element={<Dashboard />} />
-              {/* More specific routes MUST come before general ones */}
-              <Route path="claims/create" element={<CreateClaim />} />
+              {/* IMPORTANT: Route spécifique AVANT la route paramétrique */}
+              <Route path="claims/new" element={<CreateClaim />} />
               <Route path="claims/:id" element={<ClaimDetails />} />
-              {/* Add error boundary for non-existent routes */}
-              <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>
         </Router>
@@ -38,5 +22,3 @@ function App() {
     </AuthProvider>
   );
 }
-
-export default App;
