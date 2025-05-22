@@ -1,6 +1,6 @@
 // src/App.tsx
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/layout/Layout';
 import Dashboard from './pages/Dashboard';
 import ClaimDetails from './pages/ClaimDetails';
@@ -17,15 +17,20 @@ function App() {
         <Router>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/" element={
-              <RequireAuth>
-                <Layout />
-              </RequireAuth>
-            }>
+            <Route
+              path="/"
+              element={
+                <RequireAuth>
+                  <Layout />
+                </RequireAuth>
+              }
+            >
               <Route index element={<Dashboard />} />
-              {/* Important: More specific route comes first */}
-              <Route path="claims/new" element={<CreateClaim />} />
+              {/* More specific routes MUST come before general ones */}
+              <Route path="claims/create" element={<CreateClaim />} />
               <Route path="claims/:id" element={<ClaimDetails />} />
+              {/* Add error boundary for non-existent routes */}
+              <Route path="*" element={<Navigate to="/" replace />} />
             </Route>
           </Routes>
         </Router>
