@@ -799,16 +799,14 @@ const ClaimDetails: React.FC = () => {
 
 
       </div>
-    </div>
+     </div>
   );
 };
 
 interface StatusButtonProps {
-  status: ClaimStatus;
-  currentStatus: ClaimStatus;
+  status: string;
   onClick: () => void;
 }
-
 const StatusButton: React.FC<StatusButtonProps> = ({ status, currentStatus, onClick }) => {
   const getButtonStyle = () => {
     // Simple logic to determine if this status would be a forward or backward movement
