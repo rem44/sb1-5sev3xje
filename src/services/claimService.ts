@@ -63,10 +63,10 @@ const transformSupabaseClaimData = (item: any): Claim => {
     claimedAmount: parseFloat(item.claimed_amount || '0'),
     savedAmount: parseFloat(item.saved_amount || '0'),
     description: item.description || '',
-    products: [], // Sera chargé séparément si nécessaire
-    documents: [], // Sera chargé séparément si nécessaire
-    checklists: [], // Sera chargé séparément si nécessaire
-    communications: [], // Sera chargé séparément si nécessaire
+    products: item.claim_products || [],
+    documents: item.claim_documents || [],
+    checklists: item.checklists || [],
+    communications: item.claim_communications || [],
     assignedTo: item.assigned_to,
     lastUpdated: new Date(item.last_updated)
   };
@@ -81,14 +81,31 @@ export const claimService = {
         return getMockClaims();
       }
 
-      // Requête simplifiée sans les jointures problématiques
+      // Requête avec les vrais noms de tables de votre DB
       const { data, error } = await supabase
         .from('claims')
-        .select('*')
+        .select(`
+          *,
+          claim_documents(*),
+          claim_communications(*),
+          claim_products(*),
+          checklists(*)
+        `)
         .order('creation_date', { ascending: false });
 
       if (error) {
         console.error('Supabase error:', error);
+        // Fallback vers mock data si erreur de relation
+        if (error.code === 'PGRST200') {
+          console.warn('Relation error, using simple query...');
+          const { data: simpleData, error: simpleError } = await supabase
+            .from('claims')
+            .select('*')
+            .order('creation_date', { ascending: false });
+          
+          if (simpleError) throw simpleError;
+          return simpleData.map(transformSupabaseClaimData);
+        }
         throw error;
       }
 
@@ -114,10 +131,16 @@ export const claimService = {
         return claims.find(claim => claim.id === id);
       }
 
-      // Requête simplifiée pour une seule réclamation
+      // Requête avec les vrais noms de tables
       const { data, error } = await supabase
         .from('claims')
-        .select('*')
+        .select(`
+          *,
+          claim_documents(*),
+          claim_communications(*),
+          claim_products(*),
+          checklists(*)
+        `)
         .eq('id', id)
         .single();
 
@@ -126,58 +149,75 @@ export const claimService = {
           // Aucune ligne retournée
           return undefined;
         }
+        
+        // Si erreur de relation, essayer une requête simple
+        if (error.code === 'PGRST200') {
+          console.warn('Relation error, trying simple query...');
+          const { data: simpleData, error: simpleError } = await supabase
+            .from('claims')
+            .select('*')
+            .eq('id', id)
+            .single();
+          
+          if (simpleError) {
+            if (simpleError.code === 'PGRST116') return undefined;
+            throw simpleError;
+          }
+          
+          const claim = transformSupabaseClaimData(simpleData);
+          
+          // Charger les documents séparément
+          try {
+            const { data: docsData } = await supabase
+              .from('claim_documents')
+              .select('*')
+              .eq('claim_id', id);
+            
+            if (docsData) {
+              claim.documents = docsData.map((doc: any) => ({
+                id: doc.id,
+                name: doc.name,
+                type: doc.type,
+                url: doc.url,
+                uploadDate: new Date(doc.upload_date),
+                category: doc.category,
+                uploadedBy: doc.uploaded_by
+              }));
+            }
+          } catch (docsError) {
+            console.warn('Could not load documents:', docsError);
+          }
+          
+          // Charger les communications séparément
+          try {
+            const { data: commData } = await supabase
+              .from('claim_communications')
+              .select('*')
+              .eq('claim_id', id)
+              .order('date', { ascending: false });
+            
+            if (commData) {
+              claim.communications = commData.map((comm: any) => ({
+                id: comm.id,
+                date: new Date(comm.date),
+                type: comm.type,
+                subject: comm.subject,
+                content: comm.content,
+                sender: comm.sender,
+                recipients: comm.recipients
+              }));
+            }
+          } catch (commError) {
+            console.warn('Could not load communications:', commError);
+          }
+          
+          return claim;
+        }
+        
         throw error;
       }
 
-      // Transformer les données
-      const claim = transformSupabaseClaimData(data);
-
-      // Charger les documents associés séparément
-      try {
-        const { data: documentsData, error: docsError } = await supabase
-          .from('claim_documents')
-          .select('*')
-          .eq('claim_id', id);
-
-        if (!docsError && documentsData) {
-          claim.documents = documentsData.map((doc: any) => ({
-            id: doc.id,
-            name: doc.name,
-            type: doc.type,
-            url: doc.url,
-            uploadDate: new Date(doc.upload_date),
-            category: doc.category,
-            uploadedBy: doc.uploaded_by
-          }));
-        }
-      } catch (docsError) {
-        console.warn('Could not load documents for claim:', docsError);
-      }
-
-      // Charger les communications associées séparément
-      try {
-        const { data: commData, error: commError } = await supabase
-          .from('claim_communications')
-          .select('*')
-          .eq('claim_id', id)
-          .order('date', { ascending: false });
-
-        if (!commError && commData) {
-          claim.communications = commData.map((comm: any) => ({
-            id: comm.id,
-            date: new Date(comm.date),
-            type: comm.type,
-            subject: comm.subject,
-            content: comm.content,
-            sender: comm.sender,
-            recipients: comm.recipients
-          }));
-        }
-      } catch (commError) {
-        console.warn('Could not load communications for claim:', commError);
-      }
-
-      return claim;
+      return transformSupabaseClaimData(data);
     } catch (error) {
       console.error(`Error fetching claim with id ${id}:`, error);
       // Fallback vers les données mock en cas d'erreur
@@ -193,14 +233,11 @@ export const claimService = {
         throw new Error('Client name and client ID are required');
       }
 
-      // Générer un ID unique pour la nouvelle réclamation
-      const newId = Date.now().toString(36) + Math.random().toString(36).substring(2);
-
       // Si Supabase n'est pas configuré, utiliser les données mock
       if (!isSupabaseConfigured()) {
         const claims = getMockClaims();
+        const newId = Date.now().toString(36) + Math.random().toString(36).substring(2);
 
-        // Créer une nouvelle réclamation avec les champs requis
         const newClaim: Claim = {
           id: newId,
           claimNumber: claim.claimNumber || `CLM-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -225,17 +262,18 @@ export const claimService = {
           lastUpdated: new Date()
         };
 
-        claims.unshift(newClaim); // Ajouter au début pour l'ordre chronologique
+        claims.unshift(newClaim);
         saveMockClaims(claims);
         return newId;
       }
 
-      // Sinon, insérer dans Supabase
+      // Obtenir l'utilisateur actuel
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // Insérer dans Supabase
       const { data, error } = await supabase
         .from('claims')
         .insert({
-          id: newId,
-          claim_number: claim.claimNumber || `CLM-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
           client_name: claim.clientName,
           client_id: claim.clientId,
           status: claim.status || ClaimStatus.New,
@@ -250,7 +288,8 @@ export const claimService = {
           description: claim.description || '',
           creation_date: new Date(),
           last_updated: new Date(),
-          assigned_to: claim.assignedTo
+          created_by: user?.id,
+          assigned_to: claim.assignedTo || user?.id
         })
         .select('id')
         .single();
@@ -276,7 +315,6 @@ export const claimService = {
         const claimIndex = claims.findIndex(claim => claim.id === id);
 
         if (claimIndex >= 0) {
-          // Calculer le montant économisé si le montant de solution ou réclamé est mis à jour
           const updatedClaim = { ...claims[claimIndex], ...updates };
           if (updates.solutionAmount !== undefined || updates.claimedAmount !== undefined) {
             updatedClaim.savedAmount = updatedClaim.claimedAmount - updatedClaim.solutionAmount;
@@ -293,10 +331,9 @@ export const claimService = {
         return;
       }
 
-      // Sinon, mettre à jour dans Supabase
+      // Mapper les champs pour Supabase
       const updateData: any = {};
 
-      // Mapper les champs de réclamation aux champs de base de données
       if (updates.claimNumber !== undefined) updateData.claim_number = updates.claimNumber;
       if (updates.clientName !== undefined) updateData.client_name = updates.clientName;
       if (updates.clientId !== undefined) updateData.client_id = updates.clientId;
@@ -314,7 +351,6 @@ export const claimService = {
 
       // Calculer le montant économisé si nécessaire
       if ((updates.solutionAmount !== undefined || updates.claimedAmount !== undefined) && updates.savedAmount === undefined) {
-        // Récupérer les valeurs actuelles pour calculer le montant économisé
         const currentClaim = await this.getClaim(id);
         if (currentClaim) {
           const newClaimedAmount = updates.claimedAmount !== undefined ? updates.claimedAmount : currentClaim.claimedAmount;
@@ -323,7 +359,6 @@ export const claimService = {
         }
       }
 
-      // Toujours mettre à jour last_updated
       updateData.last_updated = new Date();
 
       const { error } = await supabase
@@ -345,13 +380,11 @@ export const claimService = {
         throw new Error('Claim ID, file, and category are required');
       }
 
-      // Valider la taille du fichier (max 10MB)
       const maxSize = 10 * 1024 * 1024; // 10MB
       if (file.size > maxSize) {
         throw new Error('File size exceeds 10MB limit');
       }
 
-      // Générer un nom unique pour le fichier
       const fileExt = file.name.split('.').pop() || '';
       const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
       const isImage = /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(fileExt);
@@ -362,7 +395,6 @@ export const claimService = {
           ? `https://via.placeholder.com/300x200?text=${encodeURIComponent(file.name)}`
           : `https://via.placeholder.com/100x100?text=${encodeURIComponent(fileExt.toUpperCase())}`;
 
-        // Créer un document mock
         const mockDocument: ClaimDocument = {
           id: `doc-${Date.now()}-${Math.random().toString(36).substring(2)}`,
           name: file.name,
@@ -373,7 +405,6 @@ export const claimService = {
           uploadedBy: 'mock-user-id'
         };
 
-        // Mettre à jour la réclamation avec le nouveau document
         const claims = getMockClaims();
         const claimIndex = claims.findIndex(claim => claim.id === claimId);
 
@@ -388,7 +419,7 @@ export const claimService = {
         return mockDocument;
       }
 
-      // Sinon, uploader vers Supabase Storage
+      // Upload vers Supabase Storage
       const filePath = `documents/${claimId}/${fileName}`;
 
       const { data: uploadData, error: uploadError } = await supabase.storage
@@ -400,15 +431,13 @@ export const claimService = {
 
       if (uploadError) throw uploadError;
 
-      // Obtenir l'URL publique
       const { data: { publicUrl } } = supabase.storage
         .from('claim-documents')
         .getPublicUrl(filePath);
 
-      // Obtenir l'ID de l'utilisateur actuel
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Ajouter l'enregistrement du document dans la base de données
+      // Insérer dans claim_documents (nom correct de la table)
       const { data, error } = await supabase
         .from('claim_documents')
         .insert({
@@ -425,7 +454,6 @@ export const claimService = {
 
       if (error) throw error;
 
-      // Transformer et retourner les données du document
       return {
         id: data.id,
         name: data.name,
@@ -443,12 +471,10 @@ export const claimService = {
 
   async deleteClaim(id: string): Promise<void> {
     try {
-      // Valider l'input
       if (!id || typeof id !== 'string') {
         throw new Error('Invalid claim ID provided');
       }
 
-      // Si Supabase n'est pas configuré, utiliser les données mock
       if (!isSupabaseConfigured()) {
         const claims = getMockClaims();
         const filteredClaims = claims.filter(claim => claim.id !== id);
@@ -459,7 +485,6 @@ export const claimService = {
         return;
       }
 
-      // Sinon, supprimer de Supabase
       const { error } = await supabase
         .from('claims')
         .delete()
@@ -480,7 +505,6 @@ export const claimService = {
 
       const searchLower = searchTerm.toLowerCase();
 
-      // Si Supabase n'est pas configuré, utiliser les données mock
       if (!isSupabaseConfigured()) {
         const claims = getMockClaims();
         return claims.filter(claim =>
@@ -492,7 +516,6 @@ export const claimService = {
         );
       }
 
-      // Sinon, rechercher dans Supabase
       const { data, error } = await supabase
         .from('claims')
         .select('*')
@@ -504,11 +527,9 @@ export const claimService = {
       return data.map(transformSupabaseClaimData);
     } catch (error) {
       console.error('Error searching claims:', error);
-      // Fallback vers la récupération normale
       return this.fetchClaims();
     }
   }
 };
 
-// S'assurer que le service est correctement exporté
 export default claimService;
