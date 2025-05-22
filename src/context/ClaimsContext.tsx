@@ -1,5 +1,5 @@
 // src/context/ClaimsContext.tsx
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { Claim, ClaimStatus } from '../types/claim';
 import { claimService } from '../services/claimService';
 import { useAuth } from './AuthContext';
@@ -28,13 +28,16 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [error, setError] = useState<string | null>(null);
   const { user } = useAuth();
 
-  const fetchClaims = async () => {
-    if (!user) return;
-
-    setLoading(true);
-    setError(null);
+  // ✅ Utiliser useCallback pour éviter les re-renders
+  const fetchClaims = useCallback(async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
 
     try {
+      setLoading(true);
+      setError(null);
       const fetchedClaims = await claimService.fetchClaims();
       setClaims(fetchedClaims);
     } catch (err) {
@@ -43,20 +46,18 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } finally {
       setLoading(false);
     }
-  };
-
-  // Load claims when component mounts or user changes
-  useEffect(() => {
-    if (user) {
-      fetchClaims();
-    }
   }, [user]);
 
-  const addClaim = async (claim: Partial<Claim>): Promise<string> => {
-    setLoading(true);
+  // ✅ Charger les claims seulement quand l'utilisateur change
+  useEffect(() => {
+    fetchClaims();
+  }, [fetchClaims]);
+
+  const addClaim = useCallback(async (claim: Partial<Claim>): Promise<string> => {
     try {
+      setLoading(true);
       const claimId = await claimService.createClaim(claim);
-      await fetchClaims(); // Refresh the list after adding
+      await fetchClaims(); // Refresh après ajout
       return claimId;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while creating the claim');
@@ -64,13 +65,13 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     } finally {
       setLoading(false);
     }
-  };
+  }, [fetchClaims]);
 
-  const updateClaim = async (id: string, updatedClaim: Partial<Claim>): Promise<void> => {
+  const updateClaim = useCallback(async (id: string, updatedClaim: Partial<Claim>): Promise<void> => {
     try {
       await claimService.updateClaim(id, updatedClaim);
 
-      // Update local state to avoid a complete fetch
+      // Mise à jour optimiste de l'état local
       setClaims(prevClaims =>
         prevClaims.map(claim =>
           claim.id === id ? { ...claim, ...updatedClaim, lastUpdated: new Date() } : claim
@@ -80,29 +81,25 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setError(err instanceof Error ? err.message : "An error occurred while updating the claim");
       throw err;
     }
-  };
+  }, []);
 
-  const getClaim = async (id: string): Promise<Claim | undefined> => {
-    // Try to find locally first
-    const localClaim = claims.find(claim => claim.id === id);
-
+  // ✅ getClaim ne dépend plus de claims pour éviter les re-renders
+  const getClaim = useCallback(async (id: string): Promise<Claim | undefined> => {
     try {
-      // Always get the latest data from the service
-      const claim = await claimService.getClaim(id);
-      return claim;
+      // Toujours récupérer depuis le service pour avoir les données fraîches
+      return await claimService.getClaim(id);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred while retrieving the claim");
       console.error('Error retrieving claim:', err);
-      // Return local claim as fallback
-      return localClaim;
+      // Fallback vers les données locales
+      return claims.find(claim => claim.id === id);
     }
-  };
+  }, [claims]);
 
-  const uploadDocument = async (claimId: string, file: File, category: string): Promise<void> => {
+  const uploadDocument = useCallback(async (claimId: string, file: File, category: string): Promise<void> => {
     try {
       const newDocument = await claimService.uploadDocument(claimId, file, category);
 
-      // Update local state
       setClaims(prevClaims =>
         prevClaims.map(claim => {
           if (claim.id === claimId) {
@@ -119,19 +116,19 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setError(err instanceof Error ? err.message : "An error occurred while uploading the document");
       throw err;
     }
-  };
+  }, []);
 
-  const calculateTotals = () => {
+  const calculateTotals = useCallback(() => {
     const totalSolution = claims.reduce((sum, claim) => sum + claim.solutionAmount, 0);
     const totalClaimed = claims.reduce((sum, claim) => sum + claim.claimedAmount, 0);
     const totalSaved = totalClaimed - totalSolution;
 
     return { totalSolution, totalClaimed, totalSaved };
-  };
+  }, [claims]);
 
-  const refreshClaims = async (): Promise<void> => {
+  const refreshClaims = useCallback(async (): Promise<void> => {
     await fetchClaims();
-  };
+  }, [fetchClaims]);
 
   return (
     <ClaimsContext.Provider value={{
