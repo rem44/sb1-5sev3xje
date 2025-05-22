@@ -1,6 +1,6 @@
 // src/context/ClaimsContext.tsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Claim } from '../types/claim';
+import { Claim, ClaimStatus } from '../types/claim';
 import { claimService } from '../services/claimService';
 import { useAuth } from './AuthContext';
 
@@ -29,6 +29,8 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const { user } = useAuth();
 
   const fetchClaims = async () => {
+    if (!user) return;
+
     setLoading(true);
     setError(null);
 
@@ -43,6 +45,7 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  // Load claims when component mounts or user changes
   useEffect(() => {
     if (user) {
       fetchClaims();
@@ -53,7 +56,7 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setLoading(true);
     try {
       const claimId = await claimService.createClaim(claim);
-      await fetchClaims(); // Refresh list after adding
+      await fetchClaims(); // Refresh the list after adding
       return claimId;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while creating the claim');
@@ -67,11 +70,10 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       await claimService.updateClaim(id, updatedClaim);
 
+      // Update local state to avoid a complete fetch
       setClaims(prevClaims =>
         prevClaims.map(claim =>
-          claim.id === id
-            ? { ...claim, ...updatedClaim, lastUpdated: new Date() }
-            : claim
+          claim.id === id ? { ...claim, ...updatedClaim, lastUpdated: new Date() } : claim
         )
       );
     } catch (err) {
@@ -81,14 +83,17 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const getClaim = async (id: string): Promise<Claim | undefined> => {
+    // Try to find locally first
     const localClaim = claims.find(claim => claim.id === id);
 
     try {
+      // Always get the latest data from the service
       const claim = await claimService.getClaim(id);
       return claim;
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred while retrieving the claim");
       console.error('Error retrieving claim:', err);
+      // Return local claim as fallback
       return localClaim;
     }
   };
@@ -97,16 +102,18 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       const newDocument = await claimService.uploadDocument(claimId, file, category);
 
+      // Update local state
       setClaims(prevClaims =>
-        prevClaims.map(claim =>
-          claim.id === claimId
-            ? {
-                ...claim,
-                documents: [...claim.documents, newDocument],
-                lastUpdated: new Date(),
-              }
-            : claim
-        )
+        prevClaims.map(claim => {
+          if (claim.id === claimId) {
+            return {
+              ...claim,
+              documents: [...claim.documents, newDocument],
+              lastUpdated: new Date()
+            };
+          }
+          return claim;
+        })
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred while uploading the document");
@@ -122,24 +129,22 @@ export const ClaimsProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return { totalSolution, totalClaimed, totalSaved };
   };
 
-  const refreshClaims = async () => {
+  const refreshClaims = async (): Promise<void> => {
     await fetchClaims();
   };
 
   return (
-    <ClaimsContext.Provider
-      value={{
-        claims,
-        loading,
-        error,
-        addClaim,
-        updateClaim,
-        getClaim,
-        uploadDocument,
-        calculateTotals,
-        refreshClaims,
-      }}
-    >
+    <ClaimsContext.Provider value={{
+      claims,
+      loading,
+      error,
+      addClaim,
+      updateClaim,
+      getClaim,
+      uploadDocument,
+      calculateTotals,
+      refreshClaims
+    }}>
       {children}
     </ClaimsContext.Provider>
   );
