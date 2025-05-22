@@ -1,25 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { useClaims } from '../context/ClaimsContext';
-import { format } from 'date-fns';
-import StatusBadge from '../components/ui/StatusBadge';
-import { ClaimStatus, Claim } from '../types/claim';
-import {
-  ArrowLeft,
-  Printer,
-  FileDown,
-  Edit,
-  Info,
-  Package,
-  Camera,
-  CheckSquare,
-  MessageSquare,
-  Banknote,
-  Calendar
-} from 'lucide-react';
-
-// ... (keep all the other interfaces and components the same)
-
+// src/pages/ClaimDetails.tsx (début du composant)
 const ClaimDetails: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -30,10 +9,18 @@ const ClaimDetails: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load claim data
+  // ✅ Redirection simple sans useEffect
+  if (id === 'new') {
+    navigate('/claims/new', { replace: true });
+    return null;
+  }
+
+  // ✅ useEffect simplifié avec dépendances fixes
   useEffect(() => {
+    let mounted = true;
+
     const loadClaim = async () => {
-      if (!id) {
+      if (!id || id === 'new') {
         setError('No claim ID provided');
         setLoading(false);
         return;
@@ -41,83 +28,65 @@ const ClaimDetails: React.FC = () => {
 
       try {
         setLoading(true);
+        setError(null);
         const claimData = await getClaim(id);
-        if (claimData) {
-          setClaim(claimData);
-        } else {
-          setError('Claim not found');
+        
+        if (mounted) {
+          if (claimData) {
+            setClaim(claimData);
+          } else {
+            setError('Claim not found');
+          }
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Error loading claim');
-        console.error('Error loading claim:', err);
+        if (mounted) {
+          setError(err instanceof Error ? err.message : 'Error loading claim');
+          console.error('Error loading claim:', err);
+        }
       } finally {
-        setLoading(false);
+        if (mounted) {
+          setLoading(false);
+        }
       }
     };
 
     loadClaim();
-  }, [id, getClaim]);
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#0C3B5E] mx-auto"></div>
-        <p className="mt-4 text-gray-600">Loading claim details...</p>
-      </div>
-    );
-  }
+    return () => {
+      mounted = false;
+    };
+  }, [id]); // ✅ Seulement id comme dépendance
 
-  // Error state
-  if (error || !claim) {
-    return (
-      <div className="flex flex-col items-center justify-center h-full">
-        <h2 className="text-xl font-semibold mb-2">
-          {error || 'Claim not found'}
-        </h2>
-        <p className="text-gray-500 mb-4">
-          {error ? 'There was an error loading the claim.' : "The claim you're looking for doesn't exist or has been removed."}
-        </p>
-        <button
-          onClick={() => navigate('/')}
-          className="bg-[#0C3B5E] text-white px-4 py-2 rounded-md hover:bg-[#0a3252] transition-colors"
-        >
-          Back to Dashboard
-        </button>
-      </div>
-    );
-  }
-
-  const handleStatusChange = async (newStatus: ClaimStatus) => {
+  // ✅ Handlers avec useCallback pour éviter les re-renders
+  const handleStatusChange = useCallback(async (newStatus: ClaimStatus) => {
+    if (!claim) return;
+    
     try {
       await updateClaim(claim.id, {
         status: newStatus,
         lastUpdated: new Date()
       });
       
-      // Update local state
       setClaim(prev => prev ? { ...prev, status: newStatus, lastUpdated: new Date() } : null);
     } catch (err) {
       console.error('Error updating claim status:', err);
     }
-  };
+  }, [claim, updateClaim]);
 
-  const handleInstallationDateChange = async (date: string) => {
-    if (claim) {
-      try {
-        await updateClaim(claim.id, {
-          installationDate: new Date(date)
-        });
-        
-        // Update local state
-        setClaim(prev => prev ? { ...prev, installationDate: new Date(date) } : null);
-      } catch (err) {
-        console.error('Error updating installation date:', err);
-      }
+  const handleInstallationDateChange = useCallback(async (date: string) => {
+    if (!claim) return;
+    
+    try {
+      await updateClaim(claim.id, {
+        installationDate: new Date(date)
+      });
+      
+      setClaim(prev => prev ? { ...prev, installationDate: new Date(date) } : null);
+    } catch (err) {
+      console.error('Error updating installation date:', err);
     }
-  };
+  }, [claim, updateClaim]);
 
-  // ... (rest of the component remains the same)
   
   return (
     <div className="max-w-7xl mx-auto">
