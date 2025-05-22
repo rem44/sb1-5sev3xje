@@ -14,11 +14,12 @@ const ChatInterface: React.FC = () => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [showSessions, setShowSessions] = useState(false);
+  const [retryMessage, setRetryMessage] = useState<ChatMessage | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  // Défilement automatique vers le bas quand de nouveaux messages sont ajoutés
+  // Scroll automatique vers le bas quand de nouveaux messages sont ajoutés
   useEffect(() => {
     if (messagesEndRef.current && isOpen) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
@@ -48,12 +49,12 @@ const ChatInterface: React.FC = () => {
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!newMessage.trim()) return;
+  const handleSendMessage = async (messageContent?: string) => {
+    const contentToSend = messageContent ?? newMessage.trim();
+    if (!contentToSend) return;
 
-    // Ajouter le message de l'utilisateur localement
     const userMessage: ChatMessage = {
-      content: newMessage,
+      content: contentToSend,
       role: 'user',
       timestamp: new Date()
     };
@@ -63,16 +64,13 @@ const ChatInterface: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Envoyer le message au service
-      const { response, sessionId } = await chatService.sendMessage(newMessage, currentSessionId);
+      const { response, sessionId } = await chatService.sendMessage(contentToSend, currentSessionId);
 
-      // Mettre à jour l'ID de session si c'est une nouvelle conversation
       if (!currentSessionId) {
         setCurrentSessionId(sessionId);
-        await loadSessions(); // Recharger la liste des sessions
+        await loadSessions();
       }
 
-      // Ajouter la réponse de l'assistant
       const assistantMessage: ChatMessage = {
         content: response,
         role: 'assistant',
@@ -80,17 +78,18 @@ const ChatInterface: React.FC = () => {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+      setRetryMessage(null);
     } catch (error) {
       console.error('Erreur lors de l\'envoi du message:', error);
 
-      // Message d'erreur
       const errorMessage: ChatMessage = {
-        content: "Désolé, une erreur s'est produite. Veuillez réessayer plus tard.",
+        content: "❗ Une erreur est survenue. Cliquez ici pour réessayer.",
         role: 'assistant',
         timestamp: new Date()
       };
 
       setMessages(prev => [...prev, errorMessage]);
+      setRetryMessage(userMessage);
     } finally {
       setIsLoading(false);
     }
@@ -122,6 +121,7 @@ const ChatInterface: React.FC = () => {
     setMessages([]);
     setCurrentSessionId(null);
     setShowSessions(false);
+    setRetryMessage(null);
   };
 
   const deleteSession = async (sessionId: string, e: React.MouseEvent) => {
@@ -133,14 +133,12 @@ const ChatInterface: React.FC = () => {
 
     try {
       await chatService.deleteSession(sessionId);
-
-      // Mettre à jour la liste des sessions
       setSessions(prev => prev.filter(session => session.id !== sessionId));
 
-      // Si c'est la session courante, réinitialiser
       if (currentSessionId === sessionId) {
         setMessages([]);
         setCurrentSessionId(null);
+        setRetryMessage(null);
       }
     } catch (error) {
       console.error('Erreur lors de la suppression de la session:', error);
@@ -149,7 +147,7 @@ const ChatInterface: React.FC = () => {
   };
 
   const toggleExpanded = () => {
-    setExpanded(!expanded);
+    setExpanded(prev => !prev);
   };
 
   // Render
